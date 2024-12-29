@@ -1,0 +1,186 @@
+﻿@page "/"
+@using BlazorDatasheet
+@using BlazorDatasheet.Core.Data
+@using BlazorDatasheet.DataStructures.Geometry
+@using Microsoft.Reporting.NETCore
+@inject IJSRuntime jsRuntime
+
+<PageTitle>Home</PageTitle>
+
+@if (isReportGenerated)
+{
+    <div>
+        Page: <span>@CurrentPage</span> / <span id="page_count">0</span> &nbsp;&nbsp;
+        <button @onclick="PreviousPage">Previous</button>
+        <button @onclick="NextPage">Next</button>
+        <button @onclick="ZoomIn">Zoom In</button>
+        <button @onclick="ZoomOut">Zoom Out</button>
+        <button @onclick="PrintPdf">Print</button>
+        <div @ref="pdfContainer" id="pdf-container" style="border: 0px solid #ccc; width: 600px; height: 800px;"></div>
+
+    </div>
+}
+else
+{
+    <!-- Display text box to obtain report title bound to ReportTitle -->
+    <label for="reportTitle">Report Title:</label>
+    <input type="text" id="reportTitle" @bind="ReportTitle" />
+    <br /><br />
+    <Datasheet Sheet="sheet"/>
+    <br />
+    <br />
+    <button @onclick="PrepareReportAsync">Generate Report</button>
+}
+
+@code {
+    private ElementReference pdfContainer;
+
+    private bool isReportGenerated = false;
+    private int CurrentPage = 1;
+
+    private string ReportTitle = "Invoice 4/2025";
+
+    private Sheet? sheet;
+
+    protected override void OnInitialized()
+    {
+        // Create the datasheet
+
+        sheet = new Sheet(8, 3);
+        sheet.Columns.SetHeadings(0, 0, "Description");
+        sheet.Columns.SetHeadings(1, 1, "Price");
+        sheet.Columns.SetHeadings(2, 2, "Qty");
+
+        // Add some data
+        // Get the report items
+        var reportItems = GetReportItems();
+
+        // Add the report items to the datasheet
+        for (int i = 0; i < reportItems.Length; i++)
+        {
+            sheet.Cells[i, 0].Value = reportItems[i].Description;
+            sheet.Cells[i, 1].Value = reportItems[i].Price;
+            sheet.Cells[i, 2].Value = reportItems[i].Qty;
+        }        
+    }
+
+    private ReportItem[] GetReportItems()
+    {
+        return new[]
+        {
+            new ReportItem
+            {
+                Description = "Widget 6000",
+                Price = 104.99m,
+                Qty = 1
+            },
+            new ReportItem
+            {
+                Description = "Gizmo MAX",
+                Price = 1.41m,
+                Qty = 25
+            }
+        };
+    }
+
+    private async Task PrepareReportAsync()
+    {
+        isReportGenerated = true;
+
+        using var report = new LocalReport();
+
+        // Define the report parameters
+        var parameters = new[] { new ReportParameter("Title", ReportTitle) };
+
+        // Load the report definition
+        var reportPath = System.IO.Path.Combine("Reports", "Report.rdlc");
+        if (!System.IO.File.Exists(reportPath))
+        {
+            throw new FileNotFoundException("Report file not found.", reportPath);
+        }
+
+        await using var reportStream = System.IO.File.OpenRead(reportPath);
+        using var reportReader = new System.IO.StreamReader(reportStream);
+        report.LoadReportDefinition(reportReader);
+
+        // Get all the values from the sheet
+        var items = new List<ReportItem>();
+
+        for (int i = 0; i < sheet?.NumRows; i++)
+        {
+            var item = new ReportItem
+                {
+                    Description = sheet.Cells[i, 0].Value?.ToString() ?? string.Empty,
+                    Price = decimal.TryParse(sheet.Cells[i, 1].Value?.ToString(), out var price) ? price : 0m,
+                    Qty = int.TryParse(sheet.Cells[i, 2].Value?.ToString(), out var qty) ? qty : 0
+                };
+
+            // Only add items with a description
+            if (!string.IsNullOrWhiteSpace(item.Description))
+            {
+                items.Add(item);
+            }
+        }
+
+        report.DataSources.Add(new ReportDataSource("Items", items));
+        report.SetParameters(parameters);
+
+        // Render the report to a PDF byte array
+        byte[] pdfBytes = report.Render("PDF");
+
+        // To display properly we need to save the PDF as a file and re-load it
+
+        var pdfPath = System.IO.Path.Combine("Reports", $"{DateTime.Now.Ticks.ToString()}-TempReport.pdf");
+       
+        // Save the pdf to the temp file
+        System.IO.File.WriteAllBytes(pdfPath, pdfBytes);
+
+        // Open the temp PDF file and read the bytes
+        await using (var pdfStream = System.IO.File.OpenRead(pdfPath))
+        {
+            using (var memoryStream = new System.IO.MemoryStream())
+            {
+                await pdfStream.CopyToAsync(memoryStream);
+                pdfBytes = memoryStream.ToArray();
+            }
+        }
+
+        var pdfBase64 = Convert.ToBase64String(pdfBytes);
+
+        // Call the JavaScript function with the element reference and the PDF data
+        await jsRuntime.InvokeVoidAsync("blazorPdfViewer.renderPdf", pdfContainer, pdfBase64);
+
+        // Delete the temp pdf file
+        System.IO.File.Delete(pdfPath);
+    }
+
+    private async Task PreviousPage()
+    {
+        if (CurrentPage > 1)
+        {
+            CurrentPage--;
+            await jsRuntime.InvokeVoidAsync("blazorPdfViewer.previousPage", pdfContainer);
+        }
+    }
+
+    private async Task NextPage()
+    {
+        CurrentPage++;
+        await jsRuntime.InvokeVoidAsync("blazorPdfViewer.nextPage", pdfContainer);
+    }
+
+    private async Task ZoomIn()
+    {
+        await jsRuntime.InvokeVoidAsync("blazorPdfViewer.zoomIn", pdfContainer);
+    }
+
+    private async Task ZoomOut()
+    {
+        await jsRuntime.InvokeVoidAsync("blazorPdfViewer.zoomOut", pdfContainer);
+    }
+
+    private async Task PrintPdf()
+    {
+        await jsRuntime.InvokeVoidAsync("blazorPdfViewer.printPdf", pdfContainer);
+    }
+}
