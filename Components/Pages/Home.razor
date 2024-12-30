@@ -85,8 +85,10 @@ else
 
     private async Task PrepareReportAsync()
     {
+        // Set the flag to indicate the report is generated
         isReportGenerated = true;
 
+        // Create the report
         using var report = new LocalReport();
 
         // Define the report parameters
@@ -99,6 +101,7 @@ else
             throw new FileNotFoundException("Report file not found.", reportPath);
         }
 
+        // Load the report definition (the RDLC file)
         await using var reportStream = System.IO.File.OpenRead(reportPath);
         using var reportReader = new System.IO.StreamReader(reportStream);
         report.LoadReportDefinition(reportReader);
@@ -106,8 +109,10 @@ else
         // Get all the values from the sheet
         var items = new List<ReportItem>();
 
+        // Iterate through the rows in the sheet
         for (int i = 0; i < sheet?.NumRows; i++)
         {
+            // Create a new report item
             var item = new ReportItem
                 {
                     Description = sheet.Cells[i, 0].Value?.ToString() ?? string.Empty,
@@ -121,10 +126,12 @@ else
             // Only add items with a description
             if (!string.IsNullOrWhiteSpace(item.Description))
             {
+                // Add the item to the list
                 items.Add(item);
             }
         }
 
+        // Add the data source to the report
         report.DataSources.Add(new ReportDataSource("Items", items));
         report.SetParameters(parameters);
 
@@ -149,6 +156,7 @@ else
             }
         }
 
+        // Convert the PDF bytes to a base64 string
         var pdfBase64 = Convert.ToBase64String(pdfBytes);
 
         // Call the JavaScript function with the element reference and the PDF data
