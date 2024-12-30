@@ -16,8 +16,8 @@
         <button @onclick="ZoomIn">Zoom In</button>
         <button @onclick="ZoomOut">Zoom Out</button>
         <button @onclick="PrintPdf">Print</button>
-        <div @ref="pdfContainer" id="pdf-container" style="border: 0px solid #ccc; width: 600px; height: 800px;"></div>
-
+        <div @ref="pdfContainer" id="pdf-container" 
+        style="border: 0px solid #ccc; width: 600px; height: 800px;"></div>
     </div>
 }
 else
@@ -111,8 +111,11 @@ else
             var item = new ReportItem
                 {
                     Description = sheet.Cells[i, 0].Value?.ToString() ?? string.Empty,
-                    Price = decimal.TryParse(sheet.Cells[i, 1].Value?.ToString(), out var price) ? price : 0m,
-                    Qty = int.TryParse(sheet.Cells[i, 2].Value?.ToString(), out var qty) ? qty : 0
+                    Price = 
+                    decimal.TryParse(
+                        sheet.Cells[i, 1].Value?.ToString(), out var price) ? price : 0m,
+                    Qty = int.TryParse(
+                        sheet.Cells[i, 2].Value?.ToString(), out var qty) ? qty : 0
                 };
 
             // Only add items with a description
@@ -130,7 +133,8 @@ else
 
         // To display properly we need to save the PDF as a file and re-load it
 
-        var pdfPath = System.IO.Path.Combine("Reports", $"{DateTime.Now.Ticks.ToString()}-TempReport.pdf");
+        var pdfPath = System.IO.Path.Combine("Reports", 
+        $"{DateTime.Now.Ticks.ToString()}-TempReport.pdf");
        
         // Save the pdf to the temp file
         System.IO.File.WriteAllBytes(pdfPath, pdfBytes);
