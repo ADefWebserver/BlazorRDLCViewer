@@ -4,6 +4,8 @@
 
 Read the Blog post: [Develop and Display RDLC Reports in Microsoft Blazor](https://blazorhelpwebsite.com/ViewBlogPost/20070)
 
+There is a Blazor WebAssembly version here: [https://github.com/ADefWebserver/BlazorRDLCViewerWebAssembly](https://github.com/ADefWebserver/BlazorRDLCViewerWebAssembly)
+
 This is made possible primarily by the functionally provided by these two projects:
 
 * [Report Viewer Core](https://github.com/lkosson/reportviewercore)
